@@ -1,0 +1,5 @@
+gymnasium~=0.29.1
+numpy~=1.26.4
+pygame~=2.5.2
+jupyter~=1.0.0
+networkx~=3.3
