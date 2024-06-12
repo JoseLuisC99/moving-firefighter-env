@@ -211,7 +211,7 @@ class MovingFirefighter(gym.Env):
                 canvas,
                 circle_colors[0],
                 position,
-                18,
+                15,
             )
             pygame.draw.circle(
                 canvas,
@@ -234,7 +234,7 @@ class MovingFirefighter(gym.Env):
                 node_colors[0],
                 get_position(self.node_pos[i]),
                 get_position(self.node_pos[j]),
-                width=5,
+                width=1,
             )
 
         for i in range(self.n):
