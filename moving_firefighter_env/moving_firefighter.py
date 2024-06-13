@@ -142,10 +142,7 @@ class MovingFirefighter(gym.Env):
     def reset(self, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[ObsType, dict[str, Any]]:
         super().reset(seed=seed)
         self.fighter_pos = self.n
-        if self.is_tree:
-            self.burnt_nodes = [sorted(list(self.graph.degree), key=lambda x: x[1])[-1][0]]
-        else:
-            self.burnt_nodes = list(self.np_random.choice(range(self.n), self.num_fires, replace=False))
+        self.burnt_nodes = list(self.np_random.choice(range(self.n), self.num_fires, replace=False))
         self.defended_nodes = [self.n]
         self.fighter_time = 0
         self.fire_time = 0
@@ -177,7 +174,7 @@ class MovingFirefighter(gym.Env):
             new_burnt = self._propagate()
             terminated = new_burnt == 0
         if terminated:
-            reward = float(-len(self.burnt_nodes))
+            reward = float(-len(set(self.burnt_nodes)))
 
         if self.render_mode == "human":
             self._render_frame()
