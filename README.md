@@ -1,6 +1,8 @@
 # moving-firefighter-env
 
+<div align="center">
 ![moving-firefighter example](https://raw.githubusercontent.com/JoseLuisC99/moving-firefighter-env/docs/images/graph_example.gif)
+</div>
 
 ## Description
 
@@ -8,10 +10,10 @@ This environment simulates the [Moving Firefighter Problem](https://www.mdpi.com
 
 ### The Dynamics
 
-* Firefighter: The firefighter strategically moves across the network, protecting nodes from the fire. Protected nodes cannot be burned in the future.
-* Fire: The fire starts at specific nodes and spreads to connected neighbors each time step. The fire's network (graph) can be different from the one the firefighter navigates.
+* **Firefighter**: The firefighter strategically moves across the network, protecting nodes from the fire. Protected nodes cannot be burned in the future.
+* **Fire**: The fire starts at specific nodes and spreads to connected neighbors each time step. The fire's network (graph) can be different from the one the firefighter navigates.
 
-The firefighter can't teleport; movement between nodes takes time. The firefighter receives information about their location, the networks, and the fire's progress (protected vs. burned nodes). They can then choose to move to different valid nodes (see Reward Structure).
+The firefighter can't teleport; movement between nodes takes time. The firefighter receives information about their location, the networks, and the fire's progress (protected vs. burned nodes). They can then choose to move to different valid nodes (see [Reward Structure](https://github.com/JoseLuisC99/moving-firefighter-env?tab=readme-ov-file#reward-structure)).
 
 The goal is to test the agent's ability to strategically move the firefighter to minimize the total number of nodes burned by the fire.
 
@@ -34,7 +36,8 @@ env = gym.make("mfp/MovingFirefighter-v0")
 observation, info = env.reset()
 
 for _ in range(1000):
-  action = np.random.choice(env.unwrapped.valid_actions())  # Replace with your agent's action selection logic
+  # Replace with your agent's action selection logic
+  action = np.random.choice(env.unwrapped.valid_actions())
   observation, reward, terminated, truncated, info = env.step(action)
 
   if terminated or truncated:
@@ -56,7 +59,7 @@ The observation is a dictionary with the following keys:
 
 The action space is `gym.spaces.Discrete(n)`, representing the action of moving to a node to protect it, and `n` is the number of nodes.
 
-## Reward Structure
+### Reward Structure
 
 * The agent receives a large negative reward if it moves to an invalid node (defended, burnt, or unreachable).
 * Otherwise, the agent receives a negative reward equivalent to the number of burnt nodes up to that time. 
