@@ -19,40 +19,39 @@ class MovingFirefighter(gym.Env):
                  time_slots: float = 1.0,
                  render_mode: str | None = None,
                  seed: int | None = None) -> None:
-        assert num_fires >= 1, "there must be at least one burt node"
-        assert n > num_fires, "number of nodes must be greater that number of burnt nodes"
+        assert num_fires >= 1, "there must be at least one burned node"
+        assert n > num_fires, "number of nodes must be greater that number of burned nodes"
         assert 0 < p < 1, "probability must be greater than zero and less than 1"
         assert time_slots > 0, "time_slots must be greater than zero"
         assert render_mode is None or render_mode in self.metadata["render_modes"], ("render_mode must be one of the "
                                                                                      "available render modes")
 
         self.observation_space = spaces.Dict({
-            "graph_burnt": spaces.Graph(
+            "fire_graph": spaces.Graph(
                 node_space=spaces.Box(low=-1.0, high=1.0, shape=(2,)),
                 edge_space=spaces.Discrete(1)
             ),
-            "graph_fighter": spaces.Graph(
+            "fighter_graph": spaces.Graph(
                 node_space=spaces.Box(low=-1.0, high=1.0, shape=(2,)),
                 edge_space=spaces.Box(low=0, high=np.sqrt(8), shape=(1,))
             ),
-            "fighter_pos": spaces.Discrete(n + 10),
-            "burnt_nodes": spaces.Sequence(spaces.Discrete(n + 10)),
-            "defended_nodes": spaces.Sequence(spaces.Discrete(n + 10)),
+            "fighter_pos": spaces.Discrete(n + 1),
+            "burned_nodes": spaces.Sequence(spaces.Discrete(n + 1)),
+            "defended_nodes": spaces.Sequence(spaces.Discrete(n + 1)),
         })
         self.action_space = spaces.Discrete(n)
 
         np.random.seed(seed)
-        graph = nx.random_tree(n, seed=seed)
+        fire_graph = nx.random_tree(n, seed=seed)
         if not is_tree:
             edges_to_add = []
             for i, j in combinations(range(n), 2):
-                if not graph.has_edge(i, j) and np.random.random() < p:
+                if not fire_graph.has_edge(i, j) and np.random.random() < p:
                     edges_to_add.append((i, j))
-            graph.add_edges_from(edges_to_add)
-        # graph.add_node(n)
-        node_pos = nx.spring_layout(graph, seed=seed)
+            fire_graph.add_edges_from(edges_to_add)
+        node_pos = nx.spring_layout(fire_graph, seed=seed)
         node_pos[n] = np.random.uniform(-1, 1, (2,))
-        extended_graph = nx.complete_graph(n + 1)
+        fighter_graph = nx.complete_graph(n + 1)
 
         nodes = []
         for i in range(n + 1):
@@ -64,35 +63,38 @@ class MovingFirefighter(gym.Env):
             x2, y2 = node_pos[j]
             distances[(i, j)] = np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
 
-        edges = []
-        edge_links = []
-        for i, j in graph.edges:
-            edges.append(0)
-            edge_links.append([i, j])
+        fire_edges = []
+        fire_edges_values = []
+        for i, j in fire_graph.edges:
+            fire_edges.append([i, j])
+            fire_edges_values.append(0)
 
-        extended_edges = []
-        extended_edge_links = []
+        fighter_edges = []
+        fighter_edges_values = []
         for i, j in combinations(range(n + 1), 2):
-            extended_edges.append(distances[(i, j)])
-            extended_edge_links.append([i, j])
+            fighter_edges.append([i, j])
+            fighter_edges_values.append(distances[(i, j)])
 
-        nx.set_edge_attributes(extended_graph, distances, "distance")
+        nx.set_edge_attributes(fighter_graph, distances, "distance")
+
         self.nodes = np.array(nodes, dtype=np.float32)
-        self.edges = np.array(edges, dtype=np.int64)
-        self.edge_links = np.array(edge_links, dtype=np.int32)
-        self.extended_edges = np.array(extended_edges, dtype=np.float32).reshape(-1, 1)
-        self.extended_edge_links = np.array(extended_edge_links, dtype=np.int32)
+
+        self.fire_edges = np.array(fire_edges, dtype=np.int32)
+        self.fire_edges_values = np.array(fire_edges_values, dtype=np.int64)
+
+        self.fighter_edges = np.array(fighter_edges, dtype=np.int32)
+        self.fighter_edges_values = np.array(fighter_edges_values, dtype=np.float32).reshape(-1, 1)
 
         self.is_tree = is_tree
         self.n = n
         self.num_fires = num_fires
         self.time_slot = time_slots
-        self.graph = graph
-        self.extended_graph = extended_graph
+        self.fire_graph = fire_graph
+        self.fighter_graph = fighter_graph
         self.node_pos = node_pos
 
         self.fighter_pos = None
-        self.burnt_nodes = None
+        self.burned_nodes = None
         self.defended_nodes = None
         self.fighter_time = 0
         self.fire_time = 0
@@ -104,16 +106,16 @@ class MovingFirefighter(gym.Env):
 
     def _get_obs(self) -> dict[str, Any]:
         return {
-            "graph_burnt": spaces.GraphInstance(self.nodes[:-1], self.edges, self.edge_links),
-            "graph_fighter": spaces.GraphInstance(self.nodes, self.extended_edges, self.extended_edge_links),
+            "fire_graph": spaces.GraphInstance(self.nodes[:-1], self.fire_edges_values, self.fire_edges),
+            "fighter_graph": spaces.GraphInstance(self.nodes, self.fighter_edges_values, self.fighter_edges),
             "fighter_pos": self.fighter_pos,
-            "burnt_nodes": tuple(self.burnt_nodes),
+            "burned_nodes": tuple(self.burned_nodes),
             "defended_nodes": tuple(self.defended_nodes),
         }
 
     def _get_info(self) -> dict[str, Any]:
         return {
-            "burnt_nodes": len(self.burnt_nodes),
+            "burned_nodes": len(self.burned_nodes),
             "fighter_time": self.fighter_time,
             "fire_time": self.fire_time,
             "sequence": self.defended_nodes,
@@ -122,19 +124,21 @@ class MovingFirefighter(gym.Env):
     def _propagate(self) -> int:
         self.fire_time += self.time_slot
         new_burnt = []
-        for node in self.burnt_nodes:
-            for neighbor in self.graph.neighbors(node):
-                if neighbor not in self.defended_nodes and neighbor not in self.burnt_nodes:
+        for node in self.burned_nodes:
+            for neighbor in self.fire_graph.neighbors(node):
+                if neighbor not in self.defended_nodes and neighbor not in self.burned_nodes:
                     new_burnt.append(neighbor)
-        self.burnt_nodes.extend(new_burnt)
+        self.burned_nodes.extend(new_burnt)
         return len(new_burnt)
 
     def valid_actions(self) -> np.ndarray:
         valid_actions = [self.fighter_pos]
-        for neighbor in self.extended_graph.neighbors(self.fighter_pos):
-            if neighbor in self.burnt_nodes or neighbor in self.defended_nodes:
+        for neighbor in self.fighter_graph.neighbors(self.fighter_pos):
+            # Can we move to a defended node? Maybe yes, to be closer to another interesting node
+            # if neighbor in self.burned_nodes or neighbor in self.defended_nodes:
+            if neighbor in self.burned_nodes:
                 continue
-            t = self.extended_graph.edges[self.fighter_pos, neighbor]["distance"]
+            t = self.fighter_graph.edges[self.fighter_pos, neighbor]["distance"]
             if self.fighter_time + t <= self.fire_time + self.time_slot:
                 valid_actions.append(neighbor)
         return np.array(valid_actions)
@@ -142,7 +146,7 @@ class MovingFirefighter(gym.Env):
     def reset(self, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[ObsType, dict[str, Any]]:
         super().reset(seed=seed)
         self.fighter_pos = self.n
-        self.burnt_nodes = list(self.np_random.choice(range(self.n), self.num_fires, replace=False))
+        self.burned_nodes = list(self.np_random.choice(range(self.n), self.num_fires, replace=False))
         self.defended_nodes = [self.n]
         self.fighter_time = 0
         self.fire_time = 0
@@ -152,29 +156,27 @@ class MovingFirefighter(gym.Env):
     def step(self, action: ActType) -> tuple[ObsType, SupportsFloat, bool, bool, dict[str, Any]]:
         terminated = False
         truncated = False
-        reward = 0
+        t = 0 if action == self.fighter_pos else self.fighter_graph.edges[self.fighter_pos, action]["distance"]
 
+        # The agent decides to let time flow
         if action == self.fighter_pos:
-            new_burnt = self._propagate()
-            terminated = new_burnt == 0
-        elif action in self.burnt_nodes or action in self.defended_nodes:
+            new_burned_nodes = self._propagate()
+            terminated = new_burned_nodes == 0
+            reward = new_burned_nodes
+        # the agent moves to a burned node
+        elif action in self.burned_nodes:
+            truncated = True
+            reward = float("-inf")
+        # the agent performs an invalid action
+        elif self.fighter_time + t > self.fire_time + self.time_slot:
             truncated = True
             reward = float("-inf")
         else:
-            t = self.extended_graph.edges[self.fighter_pos, action]["distance"]
-            if self.fighter_time + t > self.fire_time + self.time_slot:
-                truncated = True
-                reward = float("-inf")
-            else:
-                self.fighter_time += t
+            self.fighter_time += t
+            if action not in self.defended_nodes:
                 self.defended_nodes.append(action)
-                self.fighter_pos = action
-
-        if not truncated and len(self.valid_actions()) == 1:
-            new_burnt = self._propagate()
-            terminated = new_burnt == 0
-        if terminated:
-            reward = float(-len(set(self.burnt_nodes)))
+            self.fighter_pos = action
+            reward = 0
 
         if self.render_mode == "human":
             self._render_frame()
@@ -225,7 +227,7 @@ class MovingFirefighter(gym.Env):
         canvas.fill((255, 255, 255))
         font = pygame.font.Font(None, 18)
 
-        for i, j in self.graph.edges:
+        for i, j in self.fire_graph.edges:
             pygame.draw.line(
                 canvas,
                 node_colors[0],
@@ -235,7 +237,7 @@ class MovingFirefighter(gym.Env):
             )
 
         for i in range(self.n):
-            if i in self.burnt_nodes:
+            if i in self.burned_nodes:
                 colors = burnt_colors
             elif i in self.defended_nodes:
                 colors = defended_colors
@@ -258,4 +260,3 @@ class MovingFirefighter(gym.Env):
         if self.window is not None:
             pygame.display.quit()
             pygame.quit()
-            

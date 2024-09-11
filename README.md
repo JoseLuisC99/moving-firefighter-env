@@ -49,10 +49,10 @@ env.close()
 ### Observation Space
 
 The observation is a dictionary with the following keys:
-* `"graph_burnt"`: the graph showing how the fire spreads, with edges representing the time it takes the fire to move between nodes.
-* `"graph_fighter"`: the complete graph where the firefighter navigates, defining travel times between nodes.
+* `"fire_graph"`: the graph showing how the fire spreads, with edges representing the time it takes the fire to move between nodes.
+* `"fighter_graph"`: the complete graph where the firefighter navigates, defining travel times between nodes.
 * `"fighter_pos"`: the firefighter's current location.
-* `"burnt_nodes"`: nodes already burned by the fire.
+* `"burned_nodes"`: nodes already burned by the fire.
 * `"defended_nodes"`: nodes protected by the firefighter and safe from the fire.
 
 ### Action Space
@@ -61,8 +61,8 @@ The action space is `gym.spaces.Discrete(n)`, representing the action of moving 
 
 ### Reward Structure
 
-* The agent receives a large negative reward if it moves to an invalid node (defended, burnt, or unreachable).
-* Otherwise, the agent receives a negative reward equivalent to the number of burnt nodes up to that time. 
+* The agent receives a large negative reward if it moves to an invalid node (burnt or unreachable).
+* Otherwise, the agent receives a negative reward equivalent to the number of burned nodes during that action. 
 
 ## Contributing
 
