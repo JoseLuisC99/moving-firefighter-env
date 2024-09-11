@@ -1,7 +1,7 @@
 # moving-firefighter-env
 
 <div align="center">
-![moving-firefighter example](https://raw.githubusercontent.com/JoseLuisC99/moving-firefighter-env/docs/images/graph_example.gif)
+![moving-firefighter example](https://raw.githubusercontent.com/JoseLuisC99/moving-firefighter-env/blob/main/docs/images/graph_example.gif)
 </div>
 
 ## Description
