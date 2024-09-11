@@ -62,7 +62,7 @@ The action space is `gym.spaces.Discrete(n)`, representing the action of moving 
 ### Reward Structure
 
 * The agent receives a large negative reward if it moves to an invalid node (burnt or unreachable).
-* Otherwise, the agent receives a negative reward equivalent to the number of burned nodes during that action. 
+* Otherwise, the agent receives a negative reward equivalent to the number of new nodes burned. 
 
 ## Contributing
 

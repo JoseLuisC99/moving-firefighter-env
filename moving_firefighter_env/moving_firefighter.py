@@ -131,12 +131,12 @@ class MovingFirefighter(gym.Env):
         self.burned_nodes.extend(new_burnt)
         return len(new_burnt)
 
-    def valid_actions(self) -> np.ndarray:
+    def valid_actions(self, without_defended: bool = False) -> np.ndarray:
         valid_actions = [self.fighter_pos]
         for neighbor in self.fighter_graph.neighbors(self.fighter_pos):
-            # Can we move to a defended node? Maybe yes, to be closer to another interesting node
-            # if neighbor in self.burned_nodes or neighbor in self.defended_nodes:
             if neighbor in self.burned_nodes:
+                continue
+            if not without_defended and neighbor in self.defended_nodes:
                 continue
             t = self.fighter_graph.edges[self.fighter_pos, neighbor]["distance"]
             if self.fighter_time + t <= self.fire_time + self.time_slot:
@@ -162,7 +162,7 @@ class MovingFirefighter(gym.Env):
         if action == self.fighter_pos:
             new_burned_nodes = self._propagate()
             terminated = new_burned_nodes == 0
-            reward = new_burned_nodes
+            reward = -new_burned_nodes
         # the agent moves to a burned node
         elif action in self.burned_nodes:
             truncated = True
@@ -177,6 +177,11 @@ class MovingFirefighter(gym.Env):
                 self.defended_nodes.append(action)
             self.fighter_pos = action
             reward = 0
+
+            if len(self.valid_actions(without_defended=True)) == 1:
+                new_burned_nodes = self._propagate()
+                terminated = new_burned_nodes == 0
+                reward = -new_burned_nodes
 
         if self.render_mode == "human":
             self._render_frame()
